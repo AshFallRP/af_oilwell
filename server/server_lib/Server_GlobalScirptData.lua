@@ -1,4 +1,4 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+local QBCore = exports.af_core:GetCoreObject()
 
 GlobalScirptData = {
      oldTable = { 'deepcopy of oil_well' },
@@ -102,6 +102,10 @@ function GlobalScirptData:newOilwell(oilwell, employees)
      self.oil_well[oilwell.id].employees_list = function()
           return self.oil_well[oilwell.id].employees
      end
+
+     pcall(function()
+          exports.af_inventory:RegisterStash('oilPump_' .. oilwell.oilrig_hash, 'Oil Pump Maintenance (' .. (oilwell.name or 'Pump') .. ')', 10, 100000)
+     end)
 end
 
 function GlobalScirptData:newDevice(device, Type)

@@ -1,290 +1,203 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+local QBCore = exports.af_core:GetCoreObject()
 
 local function showInfo(data)
-     QBCore.Functions.TriggerCallback('keep-oilwell:server:oilwell_metadata', function(selected_oilrig)
-          local header = "Name: " .. data.name
-          local partInfoString = "Belt: " ..
-              selected_oilrig.part_info.belt ..
-              " Polish: " .. selected_oilrig.part_info.polish .. " Clutch: " .. selected_oilrig.part_info.clutch
-          local duration = math.floor(selected_oilrig.duration / 60)
-          -- header
-          local openMenu = {
-               {
-                    header = header,
-                    isMenuHeader = true,
-                    icon = 'fa-solid fa-oil-well'
-               }, {
-                    header = 'Speed',
-                    icon = 'fa-solid fa-gauge',
-                    txt = "" .. selected_oilrig.speed .. " RPM",
-                    disabled = true,
-               },
-               {
-                    header = 'Duration',
-                    icon = 'fa-solid fa-clock',
-                    txt = "" .. duration .. " Min",
-                    disabled = true,
-               },
-               {
-                    header = 'Temperature',
-                    icon = 'fa-solid fa-temperature-high',
-                    txt = "" .. selected_oilrig.temp .. " °C",
-                    disabled = true,
-               },
-               {
-                    header = 'Oil Storage',
-                    icon = 'fa-solid fa-oil-can',
-                    txt = "" .. selected_oilrig.oil_storage .. "/Gal",
-                    disabled = true,
-               },
-               {
-                    header = 'Part Info',
-                    icon = 'fa-solid fa-oil-can',
-                    txt = partInfoString,
-                    disabled = true,
-               },
-               {
-                    header = 'Pump oil to storage',
-                    icon = 'fa-solid fa-arrows-spin',
-                    params = {
-                         event = 'keep-oilrig:storage_menu:PumpOilToStorage',
-                         args = {
-                              oilrig_hash = data.oilrig_hash
-                         }
-                    }
-               },
-               {
-                    header = 'Manage Employees',
-                    icon = 'fa-solid fa-people-group',
-                    params = {
-                         event = 'keep-oilwell:menu:ManageEmployees',
-                         args = data.oilrig_hash
+    if not data or not data.oilrig_hash then return end
+    QBCore.Functions.TriggerCallback('keep-oilwell:server:oilwell_metadata', function(selected_oilrig)
+        if not selected_oilrig then return end
+        local partInfo = selected_oilrig.part_info or {}
+        local belt = partInfo.belt or 0
+        local polish = partInfo.polish or 0
+        local clutch = partInfo.clutch or 0
+        local durationMin = math.floor((selected_oilrig.duration or 0) / 60)
+        local oilStorage = selected_oilrig.oil_storage or 0
+        local speed = selected_oilrig.speed or 0
+        local temp = selected_oilrig.temp or 0
 
-                    }
-               },
-               {
-                    header = 'leave',
-                    icon = 'fa-solid fa-circle-xmark',
-                    params = {
-                         event = "qb-menu:closeMenu"
-                    }
-               }
-          }
-
-          exports['qb-menu']:openMenu(openMenu)
-     end, data.oilrig_hash)
+        lib.registerContext({
+            id = 'oilwell_pump_info_menu',
+            title = ('Pumpjack Rig: %s'):format(data.name or "Oil Pump"),
+            options = {
+                {
+                    title = 'Operating Speed',
+                    description = ('Current Speed: %d RPM'):format(speed),
+                    icon = 'gauge',
+                    readOnly = true
+                },
+                {
+                    title = 'Running Duration',
+                    description = ('Uptime: %d Minutes'):format(durationMin),
+                    icon = 'clock',
+                    readOnly = true
+                },
+                {
+                    title = 'Temperature',
+                    description = ('Core Temp: %d °C'):format(temp),
+                    icon = 'temperature-high',
+                    readOnly = true
+                },
+                {
+                    title = 'Extracted Crude Storage',
+                    description = ('Buffer: %d Gallons'):format(oilStorage),
+                    icon = 'oil-can',
+                    readOnly = true
+                },
+                {
+                    title = 'Mechanical Condition',
+                    description = ('Belt: %d%% | Polish: %d%% | Clutch: %d%%'):format(belt, polish, clutch),
+                    icon = 'screwdriver-wrench',
+                    readOnly = true
+                },
+                {
+                    title = 'Pump Oil to Main Storage',
+                    description = 'Transfer all crude oil from pumpjack buffer into company crude storage',
+                    icon = 'arrows-spin',
+                    onSelect = function()
+                        TriggerEvent('keep-oilrig:storage_menu:PumpOilToStorage', { oilrig_hash = data.oilrig_hash })
+                    end
+                },
+                {
+                    title = 'Manage Rig Crew & Employees',
+                    description = 'Authorize coworkers and contractors to operate this oilwell',
+                    icon = 'people-group',
+                    onSelect = function()
+                        TriggerEvent('keep-oilwell:menu:ManageEmployees', data.oilrig_hash)
+                    end
+                }
+            }
+        })
+        lib.showContext('oilwell_pump_info_menu')
+    end, data.oilrig_hash)
 end
 
 RegisterNetEvent('keep-oilwell:menu:ManageEmployees', function(oilrig_hash)
-     QBCore.Functions.TriggerCallback('keep-oilwell:server:employees_list', function(result)
-          if not result then return end
-          -- header
-          local Menu = {
-               {
-                    header = 'Oilwell Employees',
-                    isMenuHeader = true,
-                    icon = 'fa-solid fa-vest'
-               },
-          }
+    QBCore.Functions.TriggerCallback('keep-oilwell:server:employees_list', function(result)
+        if not result then return end
+        local options = {
+            {
+                title = 'Hire New Worker',
+                description = 'Add a worker by their Server ID (State ID)',
+                icon = 'person-circle-plus',
+                onSelect = function()
+                    local input = lib.inputDialog('Hire Rig Worker', {
+                        { type = 'number', label = 'Worker Server ID', min = 1, required = true }
+                    })
+                    if input and input[1] then
+                        TriggerServerEvent('keep-oilwell:server:add_employee', oilrig_hash, tonumber(input[1]))
+                    end
+                end
+            }
+        }
 
-          Menu[#Menu + 1] = {
-               header = 'Add A New Employee',
-               icon = 'fa-solid fa-person-circle-plus',
-               params = {
-                    event = "keep-oilwell:client:add_employee",
-                    args = {
-                         oilrig_hash = oilrig_hash,
-                         state_id = 1
-                    }
-               }
-          }
+        for index, employee in ipairs(result) do
+            local charinfo = employee.charinfo or {}
+            local name = (charinfo.firstname or "") .. " " .. (charinfo.lastname or "")
+            local onlineStatus = employee.online and '🟢 Online' or '🔴 Offline'
+            table.insert(options, {
+                title = ('%s (%s)'):format(name, onlineStatus),
+                description = ('Citizen ID: %s | Phone: %s\nClick to dismiss from crew'):format(employee.citizenid or 'N/A', charinfo.phone or 'N/A'),
+                icon = 'user-tie',
+                onSelect = function()
+                    local alert = lib.alertDialog({
+                        header = 'Remove Rig Worker',
+                        content = ('Are you sure you want to dismiss %s from this oil rig?'):format(name),
+                        centered = true,
+                        cancel = true
+                    })
+                    if alert == 'confirm' then
+                        TriggerServerEvent('keep-oilwell:server:remove_employee', oilrig_hash, employee.citizenid)
+                    end
+                end
+            })
+        end
 
-          for index, employee in ipairs(result) do
-               local name = employee.charinfo.firstname .. ' ' .. employee.charinfo.lastname
-               local gender = (employee.charinfo.gender == 0 and 'Male' or employee.charinfo.gender ~= 0 and 'Female')
-               local information = 'Name: %s </br> Phone: %s </br> Gender: %s </br>'
-               local other = ' (Online: %s)'
-               local online = (employee.online and '🟢' or not employee.online and '🔴')
-
-               Menu[#Menu + 1] = {
-                    header = 'Employes #' .. index .. string.format(other, online),
-                    txt = string.format(information, name, employee.charinfo.phone, gender),
-                    icon = 'fa-solid fa-person',
-                    params = {
-                         event = "keep-oilwell:menu:remove_employee",
-                         args = {
-                              employee = employee,
-                              oilrig_hash = oilrig_hash
-                         }
-                    }
-               }
-          end
-
-          Menu[#Menu + 1] = {
-               header = 'leave',
-               icon = 'fa-solid fa-circle-xmark',
-               params = {
-                    event = "qb-menu:closeMenu"
-               }
-          }
-
-          exports['qb-menu']:openMenu(Menu)
-     end, oilrig_hash)
-end)
-
-RegisterNetEvent('keep-oilwell:client:add_employee', function(data)
-     local inputData = exports['qb-input']:ShowInput({
-          header = 'Enter Employee State Id',
-          inputs = {
-               {
-                    type = 'number',
-                    isRequired = true,
-                    name = 'stateId',
-                    text = 'enter state id'
-               },
-          }
-     })
-     if inputData then
-          if not inputData.stateId then return end
-          inputData.stateId = tonumber(inputData.stateId)
-          TriggerServerEvent('keep-oilwell:server:add_employee', data.oilrig_hash, inputData.stateId)
-     end
-end)
-
-RegisterNetEvent('keep-oilwell:menu:remove_employee', function(data)
-     local employee = data.employee
-     local name = employee.charinfo.firstname .. ' ' .. employee.charinfo.lastname
-     -- header
-     local Menu = {
-          {
-               header = 'Back',
-               icon = 'fa-solid fa-angle-left',
-               params = {
-                    event = "keep-oilwell:menu:ManageEmployees",
-                    args = data.oilrig_hash
-               }
-          },
-          {
-               header = 'Fire Employee',
-               txt = 'Name: ' .. name,
-               isMenuHeader = true,
-               icon = 'fa-solid fa-vest'
-          },
-          {
-               header = 'Yes',
-               icon = 'fa-solid fa-circle-check',
-               params = {
-                    event = "keep-oilwell:menu:fire_employee",
-                    args = {
-                         employee = data.employee,
-                         oilrig_hash = data.oilrig_hash
-                    }
-               }
-          }
-     }
-
-     Menu[#Menu + 1] = {
-          header = 'Cancel',
-          icon = 'fa-solid fa-circle-xmark',
-          params = {
-               event = "qb-menu:closeMenu"
-          }
-     }
-
-     exports['qb-menu']:openMenu(Menu)
-end)
-
-RegisterNetEvent('keep-oilwell:menu:fire_employee', function(data)
-     TriggerServerEvent('keep-oilwell:server:remove_employee', data.oilrig_hash, data.employee.citizenid)
+        lib.registerContext({
+            id = 'oilwell_crew_menu',
+            title = 'Oil Rig Crew Management',
+            options = options
+        })
+        lib.showContext('oilwell_crew_menu')
+    end, oilrig_hash)
 end)
 
 local function show_oilwell_stash(data)
-     QBCore.Functions.TriggerCallback('keep-oilwell:server:oilwell_metadata', function(selected_oilrig)
-          local header = "Name: " .. data.name
-          local partInfoString = "Belt: " ..
-              selected_oilrig.part_info.belt ..
-              " Polish: " .. selected_oilrig.part_info.polish .. " Clutch: " .. selected_oilrig.part_info.clutch
-          -- header
-          local openMenu = {
-               {
-                    header = header,
-                    isMenuHeader = true,
-                    icon = 'fa-solid fa-oil-well'
-               },
-               {
-                    header = 'Part Info',
-                    icon = 'fa-solid fa-oil-can',
-                    txt = partInfoString,
-                    disabled = true,
-               },
-               {
-                    header = 'Open Stash',
-                    icon = 'fa-solid fa-cart-flatbed',
-                    params = {
-                         event = 'keep-oilwell:client:openOilPump',
-                         args = {
-                              oilrig_hash = data.oilrig_hash
-                         }
-                    }
-               },
-               {
-                    header = 'Fix Oilwell',
-                    icon = 'fa-solid fa-screwdriver-wrench',
+    if not data or not data.oilrig_hash then return end
+    QBCore.Functions.TriggerCallback('keep-oilwell:server:oilwell_metadata', function(selected_oilrig)
+        if not selected_oilrig then return end
+        local partInfo = selected_oilrig.part_info or {}
+        local belt = partInfo.belt or 0
+        local polish = partInfo.polish or 0
+        local clutch = partInfo.clutch or 0
 
-                    params = {
-                         event = 'keep-oilwell:client:fix_oilwell',
-                         args = {
-                              oilrig_hash = data.oilrig_hash
-                         }
-                    }
-               },
-               {
-                    header = 'leave',
-                    icon = 'fa-solid fa-circle-xmark',
-                    params = {
-                         event = "qb-menu:closeMenu"
-                    }
-               }
-          }
-
-          exports['qb-menu']:openMenu(openMenu)
-     end, data.oilrig_hash)
+        lib.registerContext({
+            id = 'oilwell_parts_menu',
+            title = ('Rig Maintenance: %s'):format(data.name or "Oil Pump"),
+            options = {
+                {
+                    title = 'Component Wear & Tear',
+                    description = ('Belt: %d%% | Polish: %d%% | Clutch: %d%%'):format(belt, polish, clutch),
+                    icon = 'gears',
+                    readOnly = true
+                },
+                {
+                    title = 'Open Maintenance Stash',
+                    description = 'Store repair tools, replacement belts, chains, and spare parts',
+                    icon = 'toolbox',
+                    onSelect = function()
+                        TriggerEvent('keep-oilwell:client:openOilPump', { oilrig_hash = data.oilrig_hash })
+                    end
+                },
+                {
+                    title = 'Repair & Service Rig',
+                    description = 'Use required spare parts from maintenance stash or inventory to restore condition',
+                    icon = 'screwdriver-wrench',
+                    onSelect = function()
+                        TriggerEvent('keep-oilwell:client:fix_oilwell', { oilrig_hash = data.oilrig_hash })
+                    end
+                }
+            }
+        })
+        lib.showContext('oilwell_parts_menu')
+    end, data.oilrig_hash)
 end
 
 -- Events
 AddEventHandler('keep-oilrig:storage_menu:PumpOilToStorage', function(data)
-     QBCore.Functions.TriggerCallback('keep-oilrig:server:PumpOilToStorageCallback', function(result)
-
-     end, data.oilrig_hash)
+    QBCore.Functions.TriggerCallback('keep-oilrig:server:PumpOilToStorageCallback', function(result)
+        if result then
+            lib.notify({ type = 'success', description = 'Crude oil transferred to storage!' })
+        end
+    end, data.oilrig_hash)
 end)
 
-AddEventHandler('keep-oilrig:client:viewPumpInfo', function(qbtarget)
-     -- ask for updated data
-     OilRigs:startUpdate(function()
-          showInfo(OilRigs:getByEntityHandle(qbtarget.entity))
-     end)
+AddEventHandler('keep-oilrig:client:viewPumpInfo', function(data)
+    local entity = data and data.entity
+    if not entity then return end
+    OilRigs:startUpdate(function()
+        showInfo(OilRigs:getByEntityHandle(entity))
+    end)
 end)
 
-
-AddEventHandler('keep-oilrig:client:show_oilwell_stash', function(qbtarget)
-     -- ask for updated data
-     OilRigs:startUpdate(function()
-          show_oilwell_stash(OilRigs:getByEntityHandle(qbtarget.entity))
-     end)
+AddEventHandler('keep-oilrig:client:show_oilwell_stash', function(data)
+    local entity = data and data.entity
+    if not entity then return end
+    OilRigs:startUpdate(function()
+        show_oilwell_stash(OilRigs:getByEntityHandle(entity))
+    end)
 end)
 
--- Open oil pump stash.
+-- Open oil pump stash via ox_inventory
 RegisterNetEvent("keep-oilwell:client:openOilPump", function(data)
-     if not data then return end
-     TriggerServerEvent("inventory:server:OpenInventory", "stash", "oilPump_" .. data.oilrig_hash,
-          { maxweight = 100000, slots = 5 })
-     TriggerEvent("inventory:client:SetCurrentStash", "oilPump_" .. data.oilrig_hash)
+    if not data or not data.oilrig_hash then return end
+    exports.af_inventory:openInventory('stash', 'oilPump_' .. data.oilrig_hash)
 end)
 
 AddEventHandler('keep-oilwell:client:fix_oilwell', function(data)
-     -- ask for updated data
-     QBCore.Functions.TriggerCallback('keep-oilwell:server:fix_oil_well', function(result)
-          print(result)
-     end, data.oilrig_hash)
-
+    if not data or not data.oilrig_hash then return end
+    QBCore.Functions.TriggerCallback('keep-oilwell:server:fix_oil_well', function(result)
+        if result then
+            lib.notify({ type = 'success', description = 'Oilwell serviced and restored!' })
+        else
+            lib.notify({ type = 'error', description = 'Missing required replacement parts in stash or inventory.' })
+        end
+    end, data.oilrig_hash)
 end)

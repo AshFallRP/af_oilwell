@@ -1,15 +1,68 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+local QBCore = exports.af_core:GetCoreObject()
 
 --devices
 -- ===========================================
---          Spawn / object Control
+--          Database & Startup Initialization
 -- ===========================================
-AddEventHandler('onResourceStart', function(resourceName)
-     if (GetCurrentResourceName() ~= resourceName) then
-          return
-     end
-     GlobalScirptData:wipeALL()
-     Sync_with_database()
+MySQL.ready(function()
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `oilrig_position` (
+          `id` int(11) NOT NULL AUTO_INCREMENT,
+          `citizenid` varchar(50) DEFAULT NULL,
+          `name` varchar(50) DEFAULT NULL,
+          `oilrig_hash` varchar(50) DEFAULT NULL,
+          `position` TEXT NOT NULL DEFAULT '0',
+          `metadata` TEXT NOT NULL DEFAULT '0',
+          `state` BOOLEAN NOT NULL DEFAULT FALSE,
+          `deleted` BOOLEAN NOT NULL DEFAULT FALSE,
+          PRIMARY KEY (`id`),
+          KEY `citizenid` (`citizenid`)
+        ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4;
+    ]])
+
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `oilrig_storage` (
+          `id` int(11) NOT NULL AUTO_INCREMENT,
+          `citizenid` varchar(50) DEFAULT NULL,
+          `name` varchar(50) DEFAULT NULL,
+          `metadata` TEXT NOT NULL DEFAULT '0',
+          PRIMARY KEY (`id`),
+          KEY `citizenid` (`citizenid`)
+        ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4;
+    ]])
+
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `oilrig_cdu` (
+          `id` int(11) NOT NULL AUTO_INCREMENT,
+          `citizenid` varchar(50) DEFAULT NULL,
+          `metadata` TEXT NOT NULL DEFAULT '0',
+          PRIMARY KEY (`id`),
+          KEY `citizenid` (`citizenid`)
+        ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4;
+    ]])
+
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `oilrig_blender` (
+          `id` int(11) NOT NULL AUTO_INCREMENT,
+          `citizenid` varchar(50) DEFAULT NULL,
+          `metadata` TEXT NOT NULL DEFAULT '0',
+          PRIMARY KEY (`id`),
+          KEY `citizenid` (`citizenid`)
+        ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4;
+    ]])
+
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `oilcompany_employees` (
+          `id` int(11) NOT NULL AUTO_INCREMENT,
+          `citizenid` varchar(50) DEFAULT NULL,
+          `oilrig_hash` varchar(50) DEFAULT NULL,
+          PRIMARY KEY (`id`),
+          KEY `citizenid` (`citizenid`)
+        ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4;
+    ]])
+
+    GlobalScirptData:wipeALL()
+    Sync_with_database()
 end)
 -- ==========================================
 --          Update / server Side
@@ -134,18 +187,18 @@ end)
 
 local function isWithdrawStashEmpty(Player)
      local stash = 'Withdraw_' .. Player.PlayerData.citizenid
-     local result = MySQL.Sync.fetchScalar("SELECT items FROM stashitems WHERE stash= ?", { stash })
-     if result == nil then
-          -- need to init stash
-          return false, -1
+     exports.af_inventory:RegisterStash(stash, 'Oil Withdrawal Stash', 50, 500000, Player.PlayerData.citizenid)
+     local items = exports.af_inventory:GetInventoryItems(stash)
+     if not items then
+          return true, 0
      end
-     result = json.decode(result)
-     local size = Tablelength(result)
-     if size >= 1 then
-          return false, size
-     else
-          return true, size
+     local count = 0
+     for _, item in pairs(items) do
+          if item and item.name and (item.count or item.amount or 0) > 0 then
+               count = count + 1
+          end
      end
+     return count == 0, count
 end
 
 local function divide_barells(barrel)
@@ -172,71 +225,40 @@ local function divide_barells(barrel)
 end
 
 local function add_oilbarell_2(Player, divide_res, barrel_type, barrel_avg_gas_octane)
-     -- send barells to withdraw stash
-     local barrel_max_size = Oilwell_config.Settings.capacity.oilbarell.size
-     local items = {}
      local stash = 'Withdraw_' .. Player.PlayerData.citizenid
-     local result = MySQL.Sync.fetchAll("SELECT items FROM stashitems WHERE stash=?", { stash })
-     local res = result[1]
-     if res == nil then return false end
-     if res.items == nil then return false end
-     res.items = json.decode(res.items)
-     if res.items == nil then return false end
-     local item_name = 'oilbarell'
-     local itemInfo = QBCore.Shared.Items[item_name:lower()]
+     exports.af_inventory:RegisterStash(stash, 'Oil Withdrawal Stash', 50, 500000, Player.PlayerData.citizenid)
+     local barrel_max_size = Oilwell_config.Settings.capacity.oilbarell.size
 
      if barrel_type ~= 'gasoline' then
           barrel_avg_gas_octane = 0
      end
 
      for i = 1, divide_res.full_size, 1 do
-          items[#items + 1] = {
-               name = itemInfo["name"],
-               amount = 1,
-               label = itemInfo["label"],
-               description = itemInfo["description"] ~= nil and itemInfo["description"] or "",
-               weight = itemInfo["weight"], -- can not set weight
-               type = itemInfo["type"],
-               unique = itemInfo["unique"],
-               useable = itemInfo["useable"],
-               image = itemInfo["image"],
-               slot = #items + 1,
-               info = {
-                    type = barrel_type,
-                    gal = barrel_max_size,
-                    avg_gas_octane = barrel_avg_gas_octane
-               }
+          local metadata = {
+               type = barrel_type,
+               gal = barrel_max_size,
+               avg_gas_octane = barrel_avg_gas_octane,
+               description = string.format("Type: %s | %d Gal | Octane: %d", barrel_type, barrel_max_size, barrel_avg_gas_octane)
           }
+          exports.af_inventory:AddItem(stash, 'oilbarell', 1, metadata)
      end
 
      for i = 1, divide_res.leftover, 1 do
-          items[#items + 1] = {
-               name = itemInfo["name"],
-               amount = 1,
-               label = itemInfo["label"],
-               description = itemInfo["description"] ~= nil and itemInfo["description"] or "",
-               weight = itemInfo["weight"], -- can not set weight
-               type = itemInfo["type"],
-               unique = itemInfo["unique"],
-               useable = itemInfo["useable"],
-               image = itemInfo["image"],
-               slot = #items + 1,
-               info = {
-                    type = barrel_type,
-                    gal = divide_res.leftover_value,
-                    avg_gas_octane = barrel_avg_gas_octane
-               }
+          local metadata = {
+               type = barrel_type,
+               gal = divide_res.leftover_value,
+               avg_gas_octane = barrel_avg_gas_octane,
+               description = string.format("Type: %s | %d Gal | Octane: %d", barrel_type, divide_res.leftover_value, barrel_avg_gas_octane)
           }
+          exports.af_inventory:AddItem(stash, 'oilbarell', 1, metadata)
      end
-
-     MySQL.Async.execute("UPDATE stashitems SET items = ? WHERE stash = ?", { json.encode(items), stash })
 end
 
 RegisterNetEvent('keep-oilwell:server:purgeWithdrawStash', function()
      local Player = QBCore.Functions.GetPlayer(source)
      local stash = 'Withdraw_' .. Player.PlayerData.citizenid
-     MySQL.Async.execute("UPDATE stashitems SET items = '[]' WHERE stash = ?", { stash })
-     TriggerClientEvent('QBCore:Notify', source, "Purge compeleted!", 'success')
+     exports.af_inventory:ClearInventory(stash)
+     TriggerClientEvent('QBCore:Notify', source, "Purge completed!", 'success')
 end)
 
 QBCore.Functions.CreateCallback('keep-oilrig:server:withdraw_from_queue', function(source, cb, Type)
@@ -550,10 +572,10 @@ local current_transport_stock = {
 local TRANSPORT = Oilwell_config.Transport
 
 local function change_item_info(Player, slot, info)
-     if Player.PlayerData.items[slot] then
-          Player.PlayerData.items[slot].info = info
+     if info and info.gal and info.type then
+          info.description = string.format("Type: %s | %d Gal | Octane: %d", info.type, info.gal, info.avg_gas_octane or 0)
      end
-     Player.Functions.SetInventory(Player.PlayerData.items, true)
+     exports.af_inventory:SetMetadata(Player.PlayerData.source, slot, info)
 end
 
 local function reachedMaxStock(Type)
@@ -567,8 +589,7 @@ local function canWeAcceptMoreStock(Type, amount)
 end
 
 local function remove_item(source, Player, name, slot)
-     Player.Functions.RemoveItem(name, 1, slot)
-     TriggerClientEvent('qb-inventory:client:ItemBox', source, QBCore.Shared.Items[name], "remove")
+     exports.af_inventory:RemoveItem(source, name, 1, nil, slot)
 end
 
 QBCore.Functions.CreateCallback('keep-oilrig:server:oil_transport:fillTransportWell', function(source, cb, amount)
@@ -581,7 +602,7 @@ QBCore.Functions.CreateCallback('keep-oilrig:server:oil_transport:fillTransportW
           TriggerClientEvent('QBCore:Notify', source, 'You do not have a oil barrel!', 'error')
           return
      end
-     local current_info = oil_barrel.info
+     local current_info = oil_barrel.info or oil_barrel.metadata or {}
 
      if not current_info.type then
           TriggerClientEvent('QBCore:Notify', source, 'Failed to get oil type', 'error')
@@ -700,6 +721,7 @@ end)
 ---@param cb table
 QBCore.Functions.CreateCallback('keep-oilrig:server:getNetIDs', function(source, cb)
      local player = QBCore.Functions.GetPlayer(source)
+     if not player then return cb({}) end
      local citizenid = player.PlayerData.citizenid
      local temp = {}
      for key, value in pairs(GlobalScirptData:readAll()) do
@@ -710,11 +732,9 @@ QBCore.Functions.CreateCallback('keep-oilrig:server:getNetIDs', function(source,
           temp[key].metadata = nil
           temp[key].citizenid = nil
 
-          if value.citizenid == citizenid then
-               temp[key].isOwner = true
-          else
-               temp[key].isOwner = false
-          end
+          local is_employee, is_owner = value.is_employee(citizenid)
+          temp[key].isOwner = is_owner or (value.citizenid == citizenid)
+          temp[key].isEmployee = is_employee or temp[key].isOwner
      end
      cb(temp)
 end)
@@ -800,30 +820,19 @@ QBCore.Functions.CreateCallback('keep-oilrig:server:regiserOilrig', function(sou
 end)
 
 function GetOilPumpItems(oilrig_hash)
-     local items = {}
      local stash = 'oilPump_' .. oilrig_hash
-     local result = MySQL.Sync.fetchAll("SELECT items FROM stashitems WHERE stash=?", { stash })
-     local res = result[1]
-     if res == nil then return false end
-     if res.items == nil then return false end
-     res.items = json.decode(res.items)
-     if res.items == nil then return false end
-
-     for k, item in pairs(res.items) do
-          local itemInfo = QBCore.Shared.Items[item.name:lower()]
-          items[item.slot] = {
-               name = itemInfo["name"],
-               amount = tonumber(item.amount),
-               info = item.info ~= nil and item.info or "",
-               label = itemInfo["label"],
-               description = itemInfo["description"] ~= nil and itemInfo["description"] or "",
-               weight = itemInfo["weight"],
-               type = itemInfo["type"],
-               unique = itemInfo["unique"],
-               useable = itemInfo["useable"],
-               image = itemInfo["image"],
-               slot = item.slot,
-          }
+     exports.af_inventory:RegisterStash(stash, 'Oil Pump Maintenance', 10, 100000)
+     local oxItems = exports.af_inventory:GetInventoryItems(stash)
+     if not oxItems then return {} end
+     local items = {}
+     for slot, item in pairs(oxItems) do
+          if item and item.name then
+               items[slot] = {
+                    name = item.name,
+                    amount = tonumber(item.count or item.amount or 1),
+                    slot = slot,
+               }
+          end
      end
      return items
 end
@@ -871,7 +880,7 @@ QBCore.Functions.CreateCallback('keep-oilwell:server:fix_oil_well', function(sou
      end
 
      TriggerClientEvent('QBCore:Notify', source, "Items used to fix oilwell.", 'primary')
-     MySQL.Async.execute("UPDATE stashitems SET items = '[]' WHERE stash = ?", { stash })
+     exports.af_inventory:ClearInventory(stash)
      cb(true)
 end)
 

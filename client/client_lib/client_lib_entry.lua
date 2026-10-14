@@ -1,21 +1,12 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+local QBCore = exports.af_core:GetCoreObject()
 
 function isOwner(entity)
      local oilrig = OilRigs:getByEntityHandle(entity)
-     if not oilrig then return print('failed to get oilwell') end
-     local is_employee = nil
-     local is_owner = nil
-     -- await didn't work!
-     QBCore.Functions.TriggerCallback('keep-oilwell:server:is_employee', function(_is_employee, _is_owner)
-          is_employee, is_owner = _is_employee, _is_owner
-     end, oilrig.oilrig_hash)
-     for i = 1, 5, 1 do
-          if is_employee ~= nil then
-               break
-          end
-          Wait(50)
+     if not oilrig then return false, false end
+     if oilrig.isOwner ~= nil or oilrig.isEmployee ~= nil then
+          return (oilrig.isEmployee or oilrig.isOwner or false), (oilrig.isOwner or false)
      end
-     return is_employee, is_owner
+     return false, false
 end
 
 local function Draw2DText(content, font, colour, scale, x, y)
@@ -131,31 +122,30 @@ function replaceString(o)
 end
 
 function createOwnerQbTarget(hash, coord)
-     exports['qb-target']:RemoveZone("oil-rig-" .. hash)
+     pcall(function() exports.af_target:removeZone("oil-rig-" .. hash) end)
      Targets.qb_target.oilwell(coord, hash)
 end
 
 RegisterNetEvent('keep-oilwell:client:remove_oilwell', function(data)
-     local oilwell = OilRigs:getByEntityHandle(data.entity)
+     local entity = data and data.entity
+     local oilwell = entity and OilRigs:getByEntityHandle(entity)
+     if not oilwell then return end
      for i = 1, 3, 1 do
           local value = RandomHash(4)
-          local inputData = exports['qb-input']:ShowInput({
-               header = 'Enter This Values (' .. value .. ')',
-               inputs = {
-                    {
-                         type = 'text',
-                         isRequired = true,
-                         name = 'RandomHash',
-                         text = ''
-                    },
+          local inputData = lib.inputDialog(('Confirm Oil Rig Decommission (%d/3)'):format(i), {
+               {
+                    type = 'input',
+                    label = ('Enter Code: %s'):format(value),
+                    description = 'Type the exact verification code above to proceed',
+                    required = true
                }
           })
-          if not inputData then
-               QBCore.Functions.Notify('Canceled', "primary")
+          if not inputData or not inputData[1] then
+               lib.notify({ type = 'info', description = 'Decommission cancelled.' })
                return
           end
-          if inputData.RandomHash ~= value then
-               QBCore.Functions.Notify('Failed', "primary")
+          if inputData[1] ~= value then
+               lib.notify({ type = 'error', description = 'Verification code incorrect! Action aborted.' })
                return
           end
      end
