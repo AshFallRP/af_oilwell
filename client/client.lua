@@ -316,7 +316,9 @@ AddEventHandler('onResourceStart', function(resourceName)
           OnDuty = PlayerData.job.onduty
           loadData()
      end)
-     StartBarellAnimation()
+     if StartBarellAnimation then
+          StartBarellAnimation()
+     end
 end)
 
 RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
@@ -326,7 +328,9 @@ RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
           OnDuty = PlayerData.job.onduty
           loadData()
      end)
-     StartBarellAnimation()
+     if StartBarellAnimation then
+          StartBarellAnimation()
+     end
 end)
 
 RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()

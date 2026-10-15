@@ -92,6 +92,54 @@ local function end_barell_animaiton()
     StopAnimTask(playerped, dict, anim, 1.0)
 end
 
+local function isBarellInInventory()
+    if GetResourceState('af_inventory') == 'started' then
+        local count = exports.af_inventory:Search('count', 'oilbarell')
+        if count and count > 0 then return true end
+    end
+    if QBCore and QBCore.Functions then
+        local PlayerData = QBCore.Functions.GetPlayerData()
+        if PlayerData and PlayerData.items then
+            for _, item in pairs(PlayerData.items) do
+                if item and item.name == 'oilbarell' and (item.amount or item.count or 1) > 0 then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+local already_started = false
+function StartBarellAnimation()
+    if already_started then return end
+    already_started = true
+    CreateThread(function()
+        while true do
+            local b = isBarellInInventory()
+            if b then
+                if not active_prop then
+                    start_barell_animation()
+                end
+            else
+                if active_prop then
+                    end_barell_animaiton()
+                end
+            end
+            Wait(1500)
+        end
+    end)
+end
+
+AddEventHandler('onResourceStop', function(resourceName)
+    if GetCurrentResourceName() == resourceName then
+        if active_prop then
+            DeleteObject(active_prop)
+            active_prop = nil
+        end
+    end
+end)
+
 local function show_transport_menu()
     lib.registerContext({
         id = 'oilwell_transport_menu',
