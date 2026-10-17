@@ -51,12 +51,12 @@ local function RayCastGamePlayCamera(distance)
           StartShapeTestRay(cameraCoord.x, cameraCoord.y,
                cameraCoord.z, destination.x,
                destination.y, destination.z,
-               -1, PlayerPedId(), 0))
+               -1, cache.ped, 0))
      return c, e
 end
 
 function ChooseSpawnLocation()
-     local plyped = PlayerPedId()
+     local plyped = cache.ped
      local pedCoord = GetEntityCoords(plyped)
      local activeLaser = true
      local oilrig = CreateObject(GetHashKey('p_oil_pjack_03_s'), pedCoord.x, pedCoord.y, pedCoord.z, 1, 1, 0)

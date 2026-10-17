@@ -102,14 +102,14 @@ local function showStorageWithdraw(data)
 end
 
 local function MakeVehicle(model, Coord, TriggerLocation, DinstanceToTrigger, items)
-    local plyped = PlayerPedId()
-    local pedCoord = GetEntityCoords(plyped)
+    local plyped = cache.ped
+    local pedCoord = cache.coords or GetEntityCoords(plyped)
     local finished = false
     local distance = #(pedCoord - vector3(TriggerLocation.x, TriggerLocation.y, TriggerLocation.z))
 
     CreateThread(function()
         while distance > DinstanceToTrigger do
-            local pCoord = GetEntityCoords(PlayerPedId())
+            local pCoord = cache.coords or GetEntityCoords(cache.ped)
             distance = #(pCoord - vector3(TriggerLocation.x, TriggerLocation.y, TriggerLocation.z))
             Wait(1000)
         end

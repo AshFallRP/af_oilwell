@@ -33,7 +33,7 @@ end
 
 local active_prop = nil
 local function AttachProp(model, bone, x, y, z, rot1, rot2, rot3)
-    local playerped = PlayerPedId()
+    local playerped = cache.ped
     local model_hash = GetHashKey(model)
     local playercoord = GetEntityCoords(playerped)
     local bone_index = GetPedBoneIndex(playerped, bone)
@@ -49,7 +49,7 @@ local function AttachProp(model, bone, x, y, z, rot1, rot2, rot3)
 end
 
 local function start_barell_animation()
-    local playerped = PlayerPedId()
+    local playerped = cache.ped
     local dict = 'anim@heists@box_carry@'
     local anim = 'idle'
     local PropName = 'prop_barrel_exp_01a'
@@ -81,7 +81,7 @@ local function start_barell_animation()
 end
 
 local function end_barell_animaiton()
-    local playerped = PlayerPedId()
+    local playerped = cache.ped
     local dict = 'anim@heists@box_carry@'
     local anim = 'idle'
 

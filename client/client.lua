@@ -109,7 +109,7 @@ function OilRigs:DynamicSpawner()
           end
 
           while self.dynamicSpawner_state do
-               local pedCoord = GetEntityCoords(PlayerPedId())
+               local pedCoord = cache.coords or GetEntityCoords(cache.ped)
                -- oilwells/pumps
                for index, value in pairs(self.data_table) do
                     local c = value.position.coord
