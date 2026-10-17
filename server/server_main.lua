@@ -749,7 +749,7 @@ end)
 ---@param coords table
 ---@return 'NetId'
 QBCore.Functions.CreateCallback('keep-oilrig:server:createNewOilrig', function(source, cb, coords)
-     local rigmodel = GetHashKey('p_oil_pjack_03_s')
+     local rigmodel = `p_oil_pjack_03_s`
 
      local oilrig = CreateObject(rigmodel, coords.x, coords.y, coords.z, 1, 1, 0)
      while not DoesEntityExist(oilrig) do
