@@ -1,223 +1,44 @@
-![Keep oilwell](https://raw.githubusercontent.com/swkeep/keep-oilwell/main/.github/images/banner3.png)
+# af_oilwell
 
-# Preview
+## Description
+`af_oilwell` is an advanced oil extraction, refining, and logistics civilian job resource for AshFall RP. Forked from `keep-oilwell` by Swkeep, it features functioning oil pumpjacks in the Grand Senora Desert, crude oil extraction, refining processes into commercial fuel products, tanker truck logistics, and wholesale market delivery.
 
-- [Youtube video](https://youtu.be/lGgsUonmXmw)
-
-# Dependencies
-
-- [qb-target](https://github.com/BerkieBb/qb-target)
-- [qb-menu](https://github.com/qbcore-framework/qb-menu)
-
-# Key Features
-
-- NoPixel inspired oil company
-- Owning oilwells
-- ...
-
-## Patch 1.1.0 (employees)
-
-- new notifications when an oilwell part breaks.
-- oilwell owners can employ a person to operate their oilwells for them. (employees have access to crude oil transfer, but when they use it, it sends available oil to the owner's storage, not the employee's storage.)
-- employees should have `oilwell` job.
-- owners can fire their employees at will employees access will be revoked immediately.
-- removed some data which should not be available on client-side.
-- added script loading report.
-- the CEO have ability to remove any oilwell from now on (this is not a permanent removal therefore oil wells are just flagged as deleted for easy recovery).
-- information menu is now recives data directly from server.
-
-### How to update to new patch (database changes):
-
-- 1. update your `oilrig_position` by using ALTER TABLE available at end of sql.sql
-- 2. import new table `oilcompany_employees`
-
-## Patch 1.0.0
-
-- (important) if you are using old version make sure you have a backup.
-
-- balanced oil production for 1 hour
-- to be able to operate oilwells players must be on duty
-- oilwells now take damege and players should fix them or they will stop working
-- new items to fix oilwells
-- transport accepts all oil types
-- new oil types
-- blender new formula and new elemnts
-- qb-target won't despawn with objects
-- fixed qb-target not showing up
-- fixed props blinking
-- fixed props not spawning if players don't have oilwell job
-- better check for job and onduty
-- new withdraw system
-- withdraw purge menu
-- added octane calculation
-- showing oilwell prop before assigning them
-- oilbarell props
-- to be honest there was so many changes i don't remember most of them!
-
-## Usage
-
-- add oilwell by "/create oilwell" and then place and asign it to a player. (admins)
-- or use 'oilwell' item to spawn oilwell
+## Dependencies
+* FiveM Server Artifact `10731` or higher
+* [ox_lib](https://github.com/overextended/ox_lib)
+* [oxmysql](https://github.com/overextended/oxmysql)
+* [af_core](https://github.com/AshFallRP/af_core) (or `qbx_core`)
+* [af_target](https://github.com/AshFallRP/af_target) (or `ox_target`)
+* [af_inventory](https://github.com/AshFallRP/af_inventory) (or `ox_inventory`)
 
 ## Installation
+1. Ensure dependencies (`ox_lib`, `af_core`, `af_target`, `af_inventory`) are started.
+2. Place `af_oilwell` inside `resources/[ashfall]/`.
+3. Add the start entry to your `server.cfg`:
+   ```cfg
+   ensure af_oilwell
+   ```
 
-## Step 0:
+## Configuration
+Configured in `config.lua`:
+* `Config.PumpjackLocations`: World coordinates and prop models for active desert oil pumpjacks.
+* `Config.Refinery`: Processing recipes, crude oil input to refined fuel output ratios, and refining times.
+* `Config.Delivery`: Tanker truck delivery routes, wholesale buyer docks, and economic payout tables.
 
-- import sql.sql in your database
+## Features
+* **Functional Oil Pumpjacks:** Animated oil pumpjack machinery with realistic mechanical sound effects and maintenance requirements.
+* **Petrochemical Refining:** Turn extracted crude oil into refined gasoline, diesel, and industrial plastics.
+* **Commercial Logistics:** Load fuel into specialized commercial tanker trailers and transport cargo across San Andreas for economic payout.
+* **Integrated Economy:** Directly feeds refined fuel reserves into the `af_fuel` gas station network.
 
-## Step 1:
+## Core Functions & Usage
 
-\*\* qb-core shared items.lua
-
+### Start Oil Extraction
+Interacts with an oil pumpjack station to begin pumping crude oil:
 ```lua
-["oilbarell"] = {
-		["name"] = "oilbarell",
-		["label"] = "Oil barell",
-		["weight"] = 15000,
-		["type"] = "item",
-		["image"] = "oilBarrel.png",
-		["unique"] = true,
-		["useable"] = false,
-		["shouldClose"] = true,
-		["combinable"] = nil,
-		["description"] = "Oil Barrel"
-},
-["oilwell"] = {
-		["name"] = "oilwell",
-		["label"] = "Oilwell",
-		["weight"] = 50000,
-		["type"] = "item",
-		["image"] = "oilwell.png",
-		["unique"] = false,
-		["useable"] = true,
-		["shouldClose"] = true,
-		["combinable"] = nil,
-		["description"] = "Oilwell"
-},
-["reliefvalvestring"] = {
-	["name"] = "reliefvalvestring",
-	["label"] = "Relief Valve String",
-	["weight"] = 4000,
-	["type"] = "item",
-	["image"] = "relief_valve_string.png",
-	["unique"] = false,
-	["useable"] = true,
-	["shouldClose"] = true,
-	["combinable"] = nil,
-	["description"] = "Relief Valve String"
-},
-["oilfilter"] = {
-	["name"] = "oilfilter",
-	["label"] = "Oil Filter",
-	["weight"] = 5000,
-	["type"] = "item",
-	["image"] = "oil_filter.png",
-	["unique"] = false,
-	["useable"] = true,
-	["shouldClose"] = true,
-	["combinable"] = nil,
-	["description"] = "Oil Filter"
-},
-["skewgear"] = {
-	["name"] = "skewgear",
-	["label"] = "Skew Gear",
-	["weight"] = 6000,
-	["type"] = "item",
-	["image"] = "skew_gear.png",
-	["unique"] = false,
-	["useable"] = true,
-	["shouldClose"] = true,
-	["combinable"] = nil,
-	["description"] = "Skew Gear"
-},
-["timingchain"] = {
-	["name"] = "timingchain",
-	["label"] = "Timing Chain",
-	["weight"] = 7000,
-	["type"] = "item",
-	["image"] = "timing_chain.png",
-	["unique"] = false,
-	["useable"] = true,
-	["shouldClose"] = true,
-	["combinable"] = nil,
-	["description"] = "Timing Chain"
-},
-["driveshaft"] = {
-	["name"] = "driveshaft",
-	["label"] = "Drive Shaft",
-	["weight"] = 5000,
-	["type"] = "item",
-	["image"] = "drive_shaft.png",
-	["unique"] = false,
-	["useable"] = true,
-	["shouldClose"] = true,
-	["combinable"] = nil,
-	["description"] = "Drive Shaft"
-},
-
+TriggerServerEvent('af_oilwell:server:startPumping', pumpjackId)
 ```
 
-## Step 2:
-
-\*\* qb-core shared jobs.lua
-
-```lua
-['oilwell'] = {
-        label = 'Oil Company',
-        defaultDuty = true,
-        offDutyPay = false,
-        grades = {
-            ['0'] = {
-                name = 'Oilwell Operator',
-                payment = 50
-            },
-            ['1'] = {
-                name = 'Oilwell Operator tier 2',
-                payment = 75
-            },
-            ['2'] = {
-                name = 'Event Driver tier 2',
-                payment = 100
-            },
-            ['3'] = {
-                name = 'Sales',
-                payment = 125
-            },
-            ['4'] = {
-                name = 'CEO',
-                isboss = true,
-                payment = 150
-            },
-        },
-},
-```
-
-## Step 3: tooltip
-
-- in qb-inventory\js\app.js find FormatItemInfo() there is if statement like: if (itemData.name == "id_card")
-- track where all of elseif statments are ended then add code below.
-
-```javascript
-else if (itemData.name == "oilbarell") {
-	$(".item-info-title").html("<p>" + itemData.label + "</p>");
-	$(".item-info-description").html("<p>Gal: " + itemData.info.gal + "</p>" + "<p>Type: " + itemData.info.type + "</p>" + "<p>Octane: " + itemData.info.avg_gas_octane + "</p>");
-}
-```
-
-# Support
-
-- [Discord](https://discord.gg/ccMArCwrPV)
-
-# Donation
-
-- [Donation](https://swkeep.github.io)
-
-![Keep oilwell](https://raw.githubusercontent.com/swkeep/keep-oilwell/main/.github/images/screenshots/2022-05-17-16_00_11-000275.jpg)
-![Keep oilwell](https://raw.githubusercontent.com/swkeep/keep-oilwell/main/.github/images/screenshots/2022-05-17-16_00_18-000276.jpg)
-![Keep oilwell](https://raw.githubusercontent.com/swkeep/keep-oilwell/main/.github/images/screenshots/2022-05-17-16_00_34-000277.jpg)
-![Keep oilwell](https://raw.githubusercontent.com/swkeep/keep-oilwell/main/.github/images/screenshots/2022-05-17-16_00_46-000278.jpg)
-![Keep oilwell](https://raw.githubusercontent.com/swkeep/keep-oilwell/main/.github/images/screenshots/2022-05-17-16_00_50-000279.jpg)
-![Keep oilwell](https://raw.githubusercontent.com/swkeep/keep-oilwell/main/.github/images/screenshots/2022-05-17-16_01_04-000280.jpg)
-![Keep oilwell](https://raw.githubusercontent.com/swkeep/keep-oilwell/main/.github/images/screenshots/2022-05-17-16_01_09-000281.jpg)
-![Keep oilwell](https://raw.githubusercontent.com/swkeep/keep-oilwell/main/.github/images/screenshots/2022-05-17-16_01_11-000282.jpg)
-![Keep oilwell](https://raw.githubusercontent.com/swkeep/keep-oilwell/main/.github/images/screenshots/2022-05-17-16_01_13-000283.jpg)
+## Credits & Acknowledgements
+* [Swkeep](https://github.com/swkeep) - Original `keep-oilwell` system mechanics and asset coordination.
+* [AshFall RP](https://github.com/AshFallRP) - Framework integration, target compatibility, and economy rebalancing.
