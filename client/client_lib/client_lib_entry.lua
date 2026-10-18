@@ -59,7 +59,7 @@ function ChooseSpawnLocation()
      local plyped = cache.ped
      local pedCoord = GetEntityCoords(plyped)
      local activeLaser = true
-     local oilrig = CreateObject(`p_oil_pjack_03_s`, pedCoord.x, pedCoord.y, pedCoord.z, 1, 1, 0)
+     local oilrig = CreateObject(`p_oil_pjack_03_s`, pedCoord.x, pedCoord.y, pedCoord.z, false, false, false)
      SetEntityAlpha(oilrig, 150, true)
 
      while activeLaser do

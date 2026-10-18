@@ -2,7 +2,7 @@ fx_version 'cerulean'
 use_experimental_fxv2_oal 'yes'
 games { 'gta5' }
 
-author 'AshFallRP'
+author 'AshFallRP, Swkeep'
 description 'Desert oil extraction, petrochemical refining, and logistics economy'
 
 shared_script {
