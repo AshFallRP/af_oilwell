@@ -1,17 +1,16 @@
 # af_oilwell - Commands Reference
 
-This document details all chat commands registered by `af_oilwell`.
-
-## Commands
-
-| Command | Arguments | Permission | Description |
+| Command | Arguments | Who | Description |
 | :--- | :--- | :--- | :--- |
-| `/create` | None | `admin` (ACE) | Admin command to place and calibrate a new desert oil pumpjack. |
-| `/togglejob` | None | `oilwell` (Job) | Toggles on-duty status for the oil extraction and refining profession. |
+| `/create` | `oilwell` | `admin` (QBCore permission) | Start placing a new oil well (aim the laser, `E` to place). The CEO then assigns it to a player. |
+| `/togglejob` | None | `admin` | Re-sends your oil company duty state. |
 
-## Usage Examples
+## Items and interactions
 
-### Toggle Oilfield Duty
-```sh
-/togglejob
-```
+| What | How |
+| :--- | :--- |
+| `oilwell` item | Use it to place an oil well (consumed). |
+| Assign / adjust a placed well | af_target on the well: "Assign to player" / "Adjust position" (CEO, grade 4, on duty). |
+| Operate a well, storage, CDU, blender, withdraw, transport | af_target at each location (oil company job, on duty). |
+| Repair parts | Use them at a broken well. |
+| Duty | af_target at the `toggle_job` point. |
