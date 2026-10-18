@@ -3,7 +3,7 @@ local QBCore = exports.af_core:GetCoreObject()
 PlayerJob = {}
 OnDuty = nil
 OBJECT = nil
-local rigmodel = GetHashKey('p_oil_pjack_03_s')
+local rigmodel = `p_oil_pjack_03_s`
 
 function CheckJob()
      return (PlayerJob.name == 'oilwell')

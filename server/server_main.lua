@@ -1,5 +1,23 @@
 local QBCore = exports.af_core:GetCoreObject()
 
+-- Set when a player uses the oilwell item or the admin create command, consumed by createNewOilrig
+local PendingRigSpawns = {}
+local MAX_RIG_PLACE_DISTANCE = 150.0
+
+---Mirrors the client's canInteract rule for assigning rigs: oilwell boss (grade 4) on duty
+local function IsOilwellBoss(source)
+     local player = QBCore.Functions.GetPlayer(source)
+     if not player then return false end
+
+     local job = player.PlayerData.job
+
+     return job.name == 'oilwell' and job.onduty and job.grade.level == 4
+end
+
+AddEventHandler('playerDropped', function()
+     PendingRigSpawns[source] = nil
+end)
+
 --devices
 -- ===========================================
 --          Database & Startup Initialization
@@ -358,6 +376,7 @@ QBCore.Functions.CreateUseableItem('oilwell', function(source, item)
      TriggerClientEvent('qb-inventory:client:ItemBox', source, QBCore.Shared.Items['oilwell'], "remove")
 
      if item.amount >= 1 and RemovedItem == true then
+          PendingRigSpawns[source] = true
           TriggerClientEvent('keep-oilrig:client:spawn', source)
      end
 end)
@@ -749,7 +768,18 @@ end)
 ---@param coords table
 ---@return 'NetId'
 QBCore.Functions.CreateCallback('keep-oilrig:server:createNewOilrig', function(source, cb, coords)
-     local rigmodel = GetHashKey('p_oil_pjack_03_s')
+     if not PendingRigSpawns[source] then return cb(nil) end
+
+     PendingRigSpawns[source] = nil
+
+     if type(coords) ~= 'vector3' and type(coords) ~= 'table' then return cb(nil) end
+     if type(coords.x) ~= 'number' or type(coords.y) ~= 'number' or type(coords.z) ~= 'number' then return cb(nil) end
+
+     local playerCoords = GetEntityCoords(GetPlayerPed(source))
+
+     if #(playerCoords - vector3(coords.x, coords.y, coords.z)) > MAX_RIG_PLACE_DISTANCE then return cb(nil) end
+
+     local rigmodel = `p_oil_pjack_03_s`
 
      local oilrig = CreateObject(rigmodel, coords.x, coords.y, coords.z, 1, 1, 0)
      while not DoesEntityExist(oilrig) do
@@ -761,6 +791,13 @@ end)
 
 ---register oilrig to player by their current cid
 QBCore.Functions.CreateCallback('keep-oilrig:server:regiserOilrig', function(source, cb, inputData)
+     if not IsOilwellBoss(source) then return cb(false) end
+     if type(inputData) ~= 'table' or type(inputData.name) ~= 'string' then return cb(false) end
+
+     local rig = NetworkGetEntityFromNetworkId(tonumber(inputData.netId) or 0)
+
+     if rig == 0 or GetEntityModel(rig) ~= `p_oil_pjack_03_s` then return cb(false) end
+
      -- get player by entered cid
      local cid = tonumber(inputData.cid)
      local player = QBCore.Functions.GetPlayer(cid)
@@ -1031,6 +1068,7 @@ end)
 
 QBCore.Commands.Add('create', 'create new oilwell', {}, false, function(source, args)
      if args[1] == 'oilwell' then
+          PendingRigSpawns[source] = true
           TriggerClientEvent('keep-oilrig:client:spawn', source, args[1])
      end
 end, 'admin')

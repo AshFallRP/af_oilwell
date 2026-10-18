@@ -67,7 +67,7 @@ end
 
 local function makeCore()
      if loaded then return end
-     Citizen.CreateThread(function()
+     CreateThread(function()
           local c = Oilwell_config.TruckWithdraw.npc.coords
           local vec3_coord = vector3(c.x, c.y, c.z)
           PED = spawn_ped(Oilwell_config.TruckWithdraw.npc)
